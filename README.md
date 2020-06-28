@@ -1,6 +1,6 @@
-Riscflight is flight controller software (firmware) used to fly multi-rotor craft and fixed wing craft. It is a fork of Betaflight to the Risc-V processor family, initial development is using the K210 SOC on Seeed Maix boards .
+Riscflight is flight controller software (firmware) used to fly multi-rotor craft and fixed wing craft. It is a fork of Betaflight to the Risc-V processor family, initial development is using the K210 SOC on Seeed Maix boards.
 
-The first milestone is to simply get it building. I plan on keeping version numbering in parity with Betaflight.
+The first milestone is to get it to the point that I can get a quad in the air, and hopefully some people crazy enough to test how it flys. I plan on keeping version numbering in parity with Betaflight.
 
 ## Alpha 1 - Roadmap (Initial Port)
 
