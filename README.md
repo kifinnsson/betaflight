@@ -4,7 +4,7 @@ The first milestone is to simply get it building. I plan on keeping version numb
 
 ## Alpha 1 - Roadmap (Initial Port)
 
-  4.2-K210-M1 - Getting it building in 32 bit mode
+- 4.2-K210-M1 - Getting it building in 32 bit mode
 - 4.2-K210-M2 - IO and PID loop/Gyro on different cores
 - 4.2-K210-M3 - ESC communication working
 - 4.2-K210-M4 - Full IMU support
@@ -15,15 +15,16 @@ The first milestone is to simply get it building. I plan on keeping version numb
 
 ## Alpha 2 - Roadmap (64 bit mode)
 
-4.2-K210-M1 - 64 bit building
-4.2-K210-M2 - IO and PID loop/Gyro - 64 bit
-4.2-K210-M3 - ESC communication - 64 bit
-4.2-K210-M4 - Full IMU support - 64 bit
-4.2-K210-M5 - Receiver Support - 64 bit
-4.2-K210-M6 - VTX/DJI Support - 64 bit
-4.2-K210-A2 - Alpha 2 Release
+- 4.2-K210-64-M1 - 64 bit building
+- 4.2-K210-64-M2 - IO and PID loop/Gyro - 64 bit
+- 4.2-K210-64-M3 - ESC communication - 64 bit
+- 4.2-K210-64-M4 - Full IMU support - 64 bit
+- 4.2-K210-64-M5 - Receiver Support - 64 bit
+- 4.2-K210-64-M6 - VTX/DJI Support - 64 bit
+- 4.2-K210-64-A2 - Alpha 2 Release
 
 ## Alpha 3 - K210 - Neural Core Filtering
+
 ## Events
 
 | Date  | Event |
