@@ -38,6 +38,7 @@
 #include "common/maths.h"
 #include "common/printf_serial.h"
 
+#include "config/config.h"
 #include "config/config_eeprom.h"
 #include "config/feature.h"
 
@@ -83,7 +84,6 @@
 #include "drivers/vtx_table.h"
 
 #include "fc/board_info.h"
-#include "config/config.h"
 #include "fc/dispatch.h"
 #include "fc/init.h"
 #include "fc/rc_controls.h"
@@ -95,6 +95,7 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/pid.h"
+#include "flight/pid_init.h"
 #include "flight/rpm_filter.h"
 #include "flight/servos.h"
 
@@ -1003,8 +1004,9 @@ void init(void)
 
 #if defined(USE_CMS) && defined(USE_MSP_DISPLAYPORT)
     // If BFOSD is not active, then register MSP_DISPLAYPORT as a CMS device.
-    if (!osdDisplayPort)
+    if (!osdDisplayPort) {
         cmsDisplayPortRegister(displayPortMspInit());
+    }
 #endif
 
 #ifdef USE_DASHBOARD
