@@ -1,19 +1,17 @@
-![Betaflight](docs/assets/images/bf_logo.png)
-
 Riscflight is flight controller software (firmware) used to fly multi-rotor craft and fixed wing craft. It is a fork of Betaflight to the Risc-V processor family, initial development is using the K210 SOC on Seeed Maix boards .
 
 The first milestone is to simply get it building. I plan on keeping version numbering in parity with Betaflight.
 
 ## Alpha 1 - Roadmap (Initial Port)
 
-4.2-K210-M1 - Getting it building in 32 bit mode
-4.2-K210-M2 - IO and PID loop/Gyro on different cores
-4.2-K210-M3 - ESC communication working
-4.2-K210-M4 - Full IMU support
-4.2-K210-M5 - Receiver Support
-4.2-K210-M6 - VTX/DJI Support
-4.2-K210-M7 - Publishing how to DIY your own setup
-4.2-K210-A1 - Alpha 1 Release
+  4.2-K210-M1 - Getting it building in 32 bit mode
+- 4.2-K210-M2 - IO and PID loop/Gyro on different cores
+- 4.2-K210-M3 - ESC communication working
+- 4.2-K210-M4 - Full IMU support
+- 4.2-K210-M5 - Receiver Support
+- 4.2-K210-M6 - VTX/DJI Support
+- 4.2-K210-M7 - Publishing how to DIY your own setup
+- 4.2-K210-A1 - Alpha 1 Release
 
 ## Alpha 2 - Roadmap (64 bit mode)
 
