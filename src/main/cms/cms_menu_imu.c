@@ -367,6 +367,7 @@ static uint8_t  cmsx_angleStrength;
 static uint8_t  cmsx_horizonStrength;
 static uint8_t  cmsx_horizonTransition;
 static uint8_t  cmsx_throttleBoost;
+static uint8_t  cmsx_thrustLinearization;
 static uint16_t cmsx_itermAcceleratorGain;
 static uint16_t cmsx_itermThrottleThreshold;
 static uint8_t  cmsx_motorOutputLimit;
@@ -375,6 +376,10 @@ static int8_t   cmsx_autoProfileCellCount;
 static uint8_t  cmsx_d_min[XYZ_AXIS_COUNT];
 static uint8_t  cmsx_d_min_gain;
 static uint8_t  cmsx_d_min_advance;
+#endif
+
+#ifdef USE_BATTERY_VOLTAGE_SAG_COMPENSATION
+static uint8_t  cmsx_vbat_sag_compensation;
 #endif
 
 #ifdef USE_ITERM_RELAX
@@ -407,6 +412,7 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
     cmsx_itermThrottleThreshold = pidProfile->itermThrottleThreshold;
 
     cmsx_throttleBoost = pidProfile->throttle_boost;
+    cmsx_thrustLinearization = pidProfile->thrustLinearization;
     cmsx_motorOutputLimit = pidProfile->motor_output_limit;
     cmsx_autoProfileCellCount = pidProfile->auto_profile_cell_count;
 
@@ -429,6 +435,9 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
     cmsx_ff_smooth_factor = pidProfile->ff_smooth_factor;
 #endif
 
+#ifdef USE_BATTERY_VOLTAGE_SAG_COMPENSATION
+    cmsx_vbat_sag_compensation = pidProfile->vbat_sag_compensation;
+#endif
     return NULL;
 }
 
@@ -450,6 +459,7 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile->itermThrottleThreshold = cmsx_itermThrottleThreshold;
 
     pidProfile->throttle_boost = cmsx_throttleBoost;
+    pidProfile->thrustLinearization = cmsx_thrustLinearization;
     pidProfile->motor_output_limit = cmsx_motorOutputLimit;
     pidProfile->auto_profile_cell_count = cmsx_autoProfileCellCount;
 
@@ -470,6 +480,10 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
 #ifdef USE_INTERPOLATED_SP
     pidProfile->ff_interpolate_sp = cmsx_ff_interpolate_sp;
     pidProfile->ff_smooth_factor = cmsx_ff_smooth_factor;
+#endif
+
+#ifdef USE_BATTERY_VOLTAGE_SAG_COMPENSATION
+    pidProfile->vbat_sag_compensation = cmsx_vbat_sag_compensation;
 #endif
 
     initEscEndpoints();
@@ -493,6 +507,9 @@ static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
 #ifdef USE_THROTTLE_BOOST
     { "THR BOOST",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_throttleBoost,          0,    100,   1  }   , 0 },
 #endif
+#ifdef USE_THRUST_LINEARIZATION
+    { "THR LINEAR",  OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_thrustLinearization,    0,    150,   1  }   , 0 },
+#endif
 #ifdef USE_ITERM_RELAX
     { "I_RELAX",         OME_TAB,    NULL, &(OSD_TAB_t)     { &cmsx_iterm_relax,        ITERM_RELAX_COUNT - 1,      lookupTableItermRelax       }, 0 },
     { "I_RELAX TYPE",    OME_TAB,    NULL, &(OSD_TAB_t)     { &cmsx_iterm_relax_type,   ITERM_RELAX_TYPE_COUNT - 1, lookupTableItermRelaxType   }, 0 },
@@ -511,6 +528,10 @@ static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
     { "D_MIN YAW",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_d_min[FD_YAW],       0, 100, 1 }, 0 },
     { "D_MIN GAIN",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_d_min_gain,          0, 100, 1 }, 0 },
     { "D_MIN ADV",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_d_min_advance,       0, 200, 1 }, 0 },
+#endif
+
+#ifdef USE_BATTERY_VOLTAGE_SAG_COMPENSATION
+    { "VBAT_SAG_COMP", OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_vbat_sag_compensation, 0, 150, 1 }, 0 },
 #endif
 
     { "BACK", OME_Back, NULL, NULL, 0 },
@@ -610,6 +631,7 @@ static uint16_t dynFiltNotchMinHz;
 #ifdef USE_DYN_LPF
 static uint16_t dynFiltGyroMin;
 static uint16_t dynFiltGyroMax;
+static uint8_t dynFiltGyroExpo;
 static uint16_t dynFiltDtermMin;
 static uint16_t dynFiltDtermMax;
 static uint8_t dynFiltDtermExpo;
@@ -629,6 +651,7 @@ static const void *cmsx_menuDynFilt_onEnter(displayPort_t *pDisp)
     const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
     dynFiltGyroMin  = gyroConfig()->dyn_lpf_gyro_min_hz;
     dynFiltGyroMax  = gyroConfig()->dyn_lpf_gyro_max_hz;
+    dynFiltGyroExpo = gyroConfig()->dyn_lpf_curve_expo;
     dynFiltDtermMin = pidProfile->dyn_lpf_dterm_min_hz;
     dynFiltDtermMax = pidProfile->dyn_lpf_dterm_max_hz;
     dynFiltDtermExpo = pidProfile->dyn_lpf_curve_expo;
@@ -652,6 +675,7 @@ static const void *cmsx_menuDynFilt_onExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile_t *pidProfile = currentPidProfile;
     gyroConfigMutable()->dyn_lpf_gyro_min_hz = dynFiltGyroMin;
     gyroConfigMutable()->dyn_lpf_gyro_max_hz = dynFiltGyroMax;
+    gyroConfigMutable()->dyn_lpf_curve_expo  = dynFiltGyroExpo;
     pidProfile->dyn_lpf_dterm_min_hz         = dynFiltDtermMin;
     pidProfile->dyn_lpf_dterm_max_hz         = dynFiltDtermMax;
     pidProfile->dyn_lpf_curve_expo           = dynFiltDtermExpo;
@@ -674,6 +698,7 @@ static const OSD_Entry cmsx_menuDynFiltEntries[] =
 #ifdef USE_DYN_LPF
     { "LPF GYRO MIN",   OME_UINT16, NULL, &(OSD_UINT16_t) { &dynFiltGyroMin,  0, 1000, 1 }, 0 },
     { "LPF GYRO MAX",   OME_UINT16, NULL, &(OSD_UINT16_t) { &dynFiltGyroMax,  0, 1000, 1 }, 0 },
+    { "GYRO DLPF EXPO", OME_UINT8, NULL, &(OSD_UINT8_t) { &dynFiltGyroExpo,   0, 10, 1 }, 0 },
     { "DTERM DLPF MIN", OME_UINT16, NULL, &(OSD_UINT16_t) { &dynFiltDtermMin, 0, 1000, 1 }, 0 },
     { "DTERM DLPF MAX", OME_UINT16, NULL, &(OSD_UINT16_t) { &dynFiltDtermMax, 0, 1000, 1 }, 0 },
     { "DTERM DLPF EXPO", OME_UINT8, NULL, &(OSD_UINT8_t) { &dynFiltDtermExpo, 0, 10, 1 }, 0 },

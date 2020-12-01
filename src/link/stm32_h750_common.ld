@@ -111,7 +111,7 @@ SECTIONS
     . = ALIGN(4);
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
-  } >RAM
+  } >D2_RAM
 
   /* Uninitialized data section */
   . = ALIGN(4);
@@ -131,7 +131,7 @@ SECTIONS
   /* used during startup to initialized fastram_data */
   _sfastram_idata = LOADADDR(.fastram_data);
 
-  /* Initialized FAST_RAM section for unsuspecting developers */
+  /* Initialized FAST_DATA section for unsuspecting developers */
   .fastram_data :
   {
     . = ALIGN(4);

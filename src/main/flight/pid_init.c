@@ -54,6 +54,7 @@
 #endif
 
 #define ANTI_GRAVITY_THROTTLE_FILTER_CUTOFF 15  // The anti gravity throttle highpass filter cutoff
+#define ANTI_GRAVITY_SMOOTH_FILTER_CUTOFF 3  // The anti gravity P smoothing filter cutoff
 
 static void pidSetTargetLooptime(uint32_t pidLooptime)
 {
@@ -169,6 +170,7 @@ void pidInitFilters(const pidProfile_t *pidProfile)
 #if defined(USE_THROTTLE_BOOST)
     pt1FilterInit(&throttleLpf, pt1FilterGain(pidProfile->throttle_boost_cutoff, pidRuntime.dT));
 #endif
+
 #if defined(USE_ITERM_RELAX)
     if (pidRuntime.itermRelax) {
         for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
@@ -176,6 +178,7 @@ void pidInitFilters(const pidProfile_t *pidProfile)
         }
     }
 #endif
+
 #if defined(USE_ABSOLUTE_CONTROL)
     if (pidRuntime.itermRelax) {
         for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
@@ -183,8 +186,8 @@ void pidInitFilters(const pidProfile_t *pidProfile)
         }
     }
 #endif
-#if defined(USE_D_MIN)
 
+#if defined(USE_D_MIN)
     // Initialize the filters for all axis even if the d_min[axis] value is 0
     // Otherwise if the pidProfile->d_min_xxx parameters are ever added to
     // in-flight adjustments and transition from 0 to > 0 in flight the feature
@@ -194,6 +197,7 @@ void pidInitFilters(const pidProfile_t *pidProfile)
         pt1FilterInit(&pidRuntime.dMinLowpass[axis], pt1FilterGain(D_MIN_LOWPASS_HZ, pidRuntime.dT));
      }
 #endif
+
 #if defined(USE_AIRMODE_LPF)
     if (pidProfile->transient_throttle_limit) {
         pt1FilterInit(&pidRuntime.airmodeThrottleLpf1, pt1FilterGain(7.0f, pidRuntime.dT));
@@ -202,9 +206,9 @@ void pidInitFilters(const pidProfile_t *pidProfile)
 #endif
 
     pt1FilterInit(&pidRuntime.antiGravityThrottleLpf, pt1FilterGain(ANTI_GRAVITY_THROTTLE_FILTER_CUTOFF, pidRuntime.dT));
+    pt1FilterInit(&pidRuntime.antiGravitySmoothLpf, pt1FilterGain(ANTI_GRAVITY_SMOOTH_FILTER_CUTOFF, pidRuntime.dT));
 
     pidRuntime.ffBoostFactor = (float)pidProfile->ff_boost / 10.0f;
-    pidRuntime.ffSpikeLimitInverse = pidProfile->ff_spike_limit ? 1.0f / ((float)pidProfile->ff_spike_limit / 10.0f) : 0.0f;
 }
 
 void pidInit(const pidProfile_t *pidProfile)
@@ -273,7 +277,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     {
         pidRuntime.pidCoefficient[FD_YAW].Ki *= 2.5f;
     }
-
     pidRuntime.levelGain = pidProfile->pid[PID_LEVEL].P / 10.0f;
     pidRuntime.horizonGain = pidProfile->pid[PID_LEVEL].I / 10.0f;
     pidRuntime.horizonTransition = (float)pidProfile->pid[PID_LEVEL].D;
@@ -310,7 +313,7 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     // of AG activity without excessive display.
     pidRuntime.antiGravityOsdCutoff = 0.0f;
     if (pidRuntime.antiGravityMode == ANTI_GRAVITY_SMOOTH) {
-        pidRuntime.antiGravityOsdCutoff += ((pidRuntime.itermAcceleratorGain - 1000) / 1000.0f) * 0.25f;
+        pidRuntime.antiGravityOsdCutoff += (pidRuntime.itermAcceleratorGain / 1000.0f) * 0.25f;
     }
 
 #if defined(USE_ITERM_RELAX)
@@ -375,11 +378,9 @@ void pidInitConfig(const pidProfile_t *pidProfile)
 
 #ifdef USE_THRUST_LINEARIZATION
     pidRuntime.thrustLinearization = pidProfile->thrustLinearization / 100.0f;
-    if (pidRuntime.thrustLinearization != 0.0f) {
-        pidRuntime.thrustLinearizationReciprocal = 1.0f / pidRuntime.thrustLinearization;
-        pidRuntime.thrustLinearizationB = (1.0f - pidRuntime.thrustLinearization) / (2.0f * pidRuntime.thrustLinearization);
-    }
+    pidRuntime.throttleCompensateAmount = pidRuntime.thrustLinearization - 0.5f * powerf(pidRuntime.thrustLinearization, 2);
 #endif
+
 #if defined(USE_D_MIN)
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
         const uint8_t dMin = pidProfile->d_min[axis];
@@ -393,9 +394,11 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     pidRuntime.dMinSetpointGain = pidProfile->d_min_gain * D_MIN_SETPOINT_GAIN_FACTOR * pidProfile->d_min_advance * pidRuntime.pidFrequency / (100 * D_MIN_LOWPASS_HZ);
     // lowpass included inversely in gain since stronger lowpass decreases peak effect
 #endif
+
 #if defined(USE_AIRMODE_LPF)
     pidRuntime.airmodeThrottleOffsetLimit = pidProfile->transient_throttle_limit / 100.0f;
 #endif
+
 #ifdef USE_INTERPOLATED_SP
     pidRuntime.ffFromInterpolatedSetpoint = pidProfile->ff_interpolate_sp;
     pidRuntime.ffSmoothFactor = 1.0f - ((float)pidProfile->ff_smooth_factor) / 100.0f;

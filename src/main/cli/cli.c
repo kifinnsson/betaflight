@@ -61,6 +61,7 @@ bool cliMode = false;
 #include "drivers/accgyro/accgyro.h"
 #include "drivers/adc.h"
 #include "drivers/buf_writer.h"
+#include "drivers/bus_i2c.h"
 #include "drivers/bus_spi.h"
 #include "drivers/dma.h"
 #include "drivers/dma_reqmap.h"
@@ -304,7 +305,11 @@ static const char *mcuTypeNames[] = {
     "H743 (Rev.Y)",
     "H743 (Rev.X)",
     "H743 (Rev.V)",
+    "H7A3",
+    "H723/H725",
 };
+
+static const char *configurationStates[] = { "UNCONFIGURED", "CUSTOM DEFAULTS", "CONFIGURED" };
 
 typedef enum dumpFlags_e {
     DUMP_MASTER = (1 << 0),
@@ -978,7 +983,7 @@ static void cliShowInvalidArgumentCountError(const char *cmdName)
 static void cliShowArgumentRangeError(const char *cmdName, char *name, int min, int max)
 {
     if (name) {
-        cliPrintErrorLinef(cmdName, "%s: %s NOT BETWEEN %d AND %d", name, min, max);
+        cliPrintErrorLinef(cmdName, "%s NOT BETWEEN %d AND %d", name, min, max);
     } else {
         cliPrintErrorLinef(cmdName, "ARGUMENT OUT OF RANGE");
     }
@@ -1773,6 +1778,7 @@ static void printMotorMix(dumpFlags_t dumpMask, const motorMixer_t *customMotorM
 static void cliMotorMix(const char *cmdName, char *cmdline)
 {
 #ifdef USE_QUAD_MIXER_ONLY
+    UNUSED(cmdName);
     UNUSED(cmdline);
 #else
     int check = 0;
@@ -4670,8 +4676,8 @@ static void cliStatus(const char *cmdName, char *cmdline)
 
     cliPrintf("MCU %s Clock=%dMHz", getMcuTypeById(getMcuTypeId()), (SystemCoreClock / 1000000));
 
-#ifdef STM32F4
-    // Only F4 is capable of switching between HSE/HSI (for now)
+#if defined(STM32F4) || defined(STM32G4)
+    // Only F4 and G4 is capable of switching between HSE/HSI (for now)
     int sysclkSource = SystemSYSCLKSource();
 
     const char *SYSCLKSource[] = { "HSI", "HSE", "PLLP", "PLLR" };
@@ -4697,12 +4703,27 @@ static void cliStatus(const char *cmdName, char *cmdline)
     // Stack and config sizes and usages
 
     cliPrintf("Stack size: %d, Stack address: 0x%x", stackTotalSize(), stackHighMem());
-#ifdef STACK_CHECK
+#ifdef USE_STACK_CHECK
     cliPrintf(", Stack used: %d", stackUsedSize());
 #endif
     cliPrintLinefeed();
 
-    cliPrintLinef("Config size: %d, Max available config: %d", getEEPROMConfigSize(), getEEPROMStorageSize());
+    cliPrintLinef("Configuration: %s, size: %d, max available: %d", configurationStates[systemConfigMutable()->configurationState], getEEPROMConfigSize(), getEEPROMStorageSize());
+
+    // Devices
+#if defined(USE_SPI) || defined(USE_I2C)
+    cliPrint("Devices detected:");
+#if defined(USE_SPI)
+    cliPrintf(" SPI:%d", spiGetRegisteredDeviceCount());
+#if defined(USE_I2C)
+    cliPrint(",");
+#endif
+#endif
+#if defined(USE_I2C)
+    cliPrintf(" I2C:%d", i2cGetRegisteredDeviceCount());
+#endif
+    cliPrintLinefeed();
+#endif
 
     // Sensors
     cliPrint("Gyros detected:");
@@ -5324,10 +5345,23 @@ static void optToString(int optval, char *buf)
 
 static void printPeripheralDmaoptDetails(dmaoptEntry_t *entry, int index, const dmaoptValue_t dmaopt, const bool equalsDefault, const dumpFlags_t dumpMask, printFn *printValue)
 {
+    // We compute number to display for different peripherals in advance.
+    // This is done to deal with TIMUP which numbered non-contiguously.
+    // Note that using timerGetNumberByIndex is not a generic solution,
+    // but we are lucky that TIMUP is the only peripheral with non-contiguous numbering.
+
+    int uiIndex;
+
+    if (entry->presenceMask) {
+        uiIndex = timerGetNumberByIndex(index);
+    } else {
+        uiIndex = DMA_OPT_UI_INDEX(index);
+    }
+
     if (dmaopt != DMA_OPT_UNUSED) {
         printValue(dumpMask, equalsDefault,
             "dma %s %d %d",
-            entry->device, DMA_OPT_UI_INDEX(index), dmaopt);
+            entry->device, uiIndex, dmaopt);
 
         const dmaChannelSpec_t *dmaChannelSpec = dmaGetChannelSpecByPeripheral(entry->peripheral, index, dmaopt);
         dmaCode_t dmaCode = 0;
@@ -5336,11 +5370,11 @@ static void printPeripheralDmaoptDetails(dmaoptEntry_t *entry, int index, const 
         }
         printValue(dumpMask, equalsDefault,
             "# %s %d: " DMASPEC_FORMAT_STRING,
-            entry->device, DMA_OPT_UI_INDEX(index), DMA_CODE_CONTROLLER(dmaCode), DMA_CODE_STREAM(dmaCode), DMA_CODE_CHANNEL(dmaCode));
+            entry->device, uiIndex, DMA_CODE_CONTROLLER(dmaCode), DMA_CODE_STREAM(dmaCode), DMA_CODE_CHANNEL(dmaCode));
     } else if (!(dumpMask & HIDE_UNUSED)) {
         printValue(dumpMask, equalsDefault,
             "dma %s %d NONE",
-            entry->device, DMA_OPT_UI_INDEX(index));
+            entry->device, uiIndex);
     }
 }
 

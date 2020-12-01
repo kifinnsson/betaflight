@@ -89,6 +89,8 @@
 
 #include "config.h"
 
+#include "drivers/dshot.h"
+
 static bool configIsDirty; /* someone indicated that the config is modified and it is not yet saved */
 
 static bool rebootRequired = false;  // set if a config change requires a reboot to take effect
@@ -124,7 +126,7 @@ PG_RESET_TEMPLATE(systemConfig_t, systemConfig,
     .cpu_overclock = DEFAULT_CPU_OVERCLOCK,
     .powerOnArmingGraceTime = 5,
     .boardIdentifier = TARGET_BOARD_IDENTIFIER,
-    .hseMhz = SYSTEM_HSE_VALUE,  // Not used for non-F4 targets
+    .hseMhz = SYSTEM_HSE_VALUE,  // Only used for F4 and G4 targets
     .configurationState = CONFIGURATION_STATE_DEFAULTS_BARE,
     .schedulerOptimizeRate = SCHEDULER_OPTIMIZE_RATE_AUTO,
     .enableStickArming = false,
@@ -372,7 +374,7 @@ static void validateAndFixConfig(void)
 #endif
 
     if (
-        featureIsConfigured(FEATURE_3D) || !featureIsConfigured(FEATURE_GPS)
+        featureIsConfigured(FEATURE_3D) || !featureIsConfigured(FEATURE_GPS) || mixerModeIsFixedWing(mixerConfig()->mixerMode)
 #if !defined(USE_GPS) || !defined(USE_GPS_RESCUE)
         || true
 #endif
@@ -531,7 +533,7 @@ static void validateAndFixConfig(void)
 #if defined(USE_DYN_IDLE)
     if (!isRpmFilterEnabled()) {
         for (unsigned i = 0; i < PID_PROFILE_COUNT; i++) {
-            pidProfilesMutable(i)->idle_min_rpm = 0;
+            pidProfilesMutable(i)->dyn_idle_min_rpm = 0;
         }
     }
 #endif // USE_DYN_IDLE
@@ -596,6 +598,17 @@ static void validateAndFixConfig(void)
             }
         }
     }
+
+#if defined(USE_RX_MSP_OVERRIDE)
+    for (int i = 0; i < MAX_MODE_ACTIVATION_CONDITION_COUNT; i++) {
+        const modeActivationCondition_t *mac = modeActivationConditions(i);
+        if (mac->modeId == BOXMSPOVERRIDE && ((1 << (mac->auxChannelIndex) & (rxConfig()->msp_override_channels_mask)))) {
+            rxConfigMutable()->msp_override_channels_mask &= ~(1 << (mac->auxChannelIndex + NON_AUX_CHANNEL_COUNT));
+        }
+    }
+#endif
+
+    validateAndfixMotorOutputReordering(motorConfigMutable()->dev.motorOutputReordering, MAX_SUPPORTED_MOTORS);
 }
 
 void validateAndFixGyroConfig(void)

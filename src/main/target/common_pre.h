@@ -48,9 +48,8 @@
 #endif
 
 #ifdef STM32F4
-#define USE_SRAM2
 #if defined(STM32F40_41xxx)
-#define USE_FAST_RAM
+#define USE_FAST_DATA
 #endif
 #define USE_DSHOT
 #define USE_DSHOT_BITBANG
@@ -70,8 +69,7 @@
 #define USE_TIMER_MGMT
 #define USE_PERSISTENT_OBJECTS
 #define USE_CUSTOM_DEFAULTS_ADDRESS
-// Re-enable this after 4.0 has been released, and remove the define from STM32F4DISCOVERY
-//#define USE_SPI_TRANSACTION
+#define USE_SPI_TRANSACTION
 
 #if defined(STM32F40_41xxx) || defined(STM32F411xE)
 #define USE_OVERCLOCK
@@ -80,9 +78,8 @@
 #endif // STM32F4
 
 #ifdef STM32F7
-#define USE_SRAM2
 #define USE_ITCM_RAM
-#define USE_FAST_RAM
+#define USE_FAST_DATA
 #define USE_DSHOT
 #define USE_DSHOT_BITBANG
 #define USE_DSHOT_TELEMETRY
@@ -102,14 +99,14 @@
 #define USE_TIMER_MGMT
 #define USE_PERSISTENT_OBJECTS
 #define USE_CUSTOM_DEFAULTS_ADDRESS
-// Re-enable this after 4.0 has been released, and remove the define from STM32F4DISCOVERY
-//#define USE_SPI_TRANSACTION
+#define USE_SPI_TRANSACTION
 #endif // STM32F7
 
 #ifdef STM32H7
 #define USE_ITCM_RAM
-#define USE_FAST_RAM
+#define USE_FAST_DATA
 #define USE_DSHOT
+#define USE_DSHOT_BITBANG
 #define USE_DSHOT_TELEMETRY
 #define USE_DSHOT_TELEMETRY_STATS
 #define USE_RPM_FILTER
@@ -123,9 +120,33 @@
 #define USE_TIMER_MGMT
 #define USE_PERSISTENT_OBJECTS
 #define USE_DMA_RAM
+#define USE_USB_MSC
+#define USE_RTC_TIME
+#define USE_PERSISTENT_MSC_RTC
+#define USE_DSHOT_CACHE_MGMT
 #endif
 
-#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
+#ifdef STM32G4
+#define USE_FAST_RAM
+#define USE_DSHOT
+#define USE_DSHOT_BITBANG
+#define USE_DSHOT_TELEMETRY
+#define USE_DSHOT_TELEMETRY_STATS
+#define USE_RPM_FILTER
+#define USE_DYN_IDLE
+#define I2C3_OVERCLOCK true
+#define I2C4_OVERCLOCK true
+#define USE_OVERCLOCK
+#define USE_GYRO_DATA_ANALYSE
+#define USE_ADC_INTERNAL
+#define USE_USB_MSC
+#define USE_USB_CDC_HID
+#define USE_MCO
+#define USE_DMA_SPEC
+#define USE_TIMER_MGMT
+#endif
+
+#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
 #define TASK_GYROPID_DESIRED_PERIOD     125 // 125us = 8kHz
 #define SCHEDULER_DELAY_LIMIT           10
 #else
@@ -162,31 +183,34 @@
 #define CCM_CODE
 #endif
 
-#ifdef USE_FAST_RAM
-#define FAST_RAM_ZERO_INIT             __attribute__ ((section(".fastram_bss"), aligned(4)))
-#define FAST_RAM                    __attribute__ ((section(".fastram_data"), aligned(4)))
+#ifdef USE_FAST_DATA
+#define FAST_DATA_ZERO_INIT             __attribute__ ((section(".fastram_bss"), aligned(4)))
+#define FAST_DATA                    __attribute__ ((section(".fastram_data"), aligned(4)))
 #else
-#define FAST_RAM_ZERO_INIT
-#define FAST_RAM
-#endif // USE_FAST_RAM
+#define FAST_DATA_ZERO_INIT
+#define FAST_DATA
+#endif // USE_FAST_DATA
 
 #if defined(STM32F4) || defined (STM32H7)
 // Data in RAM which is guaranteed to not be reset on hot reboot
 #define PERSISTENT                  __attribute__ ((section(".persistent_data"), aligned(4)))
 #endif
 
-#ifdef USE_SRAM2
-#define SRAM2                       __attribute__ ((section(".sram2"), aligned(4)))
-#else
-#define SRAM2
-#endif
-
 #ifdef USE_DMA_RAM
+#if defined(STM32H7)
 #define DMA_RAM __attribute__((section(".DMA_RAM")))
 #define DMA_RW_AXI __attribute__((section(".DMA_RW_AXI")))
+#elif defined(STM32G4)
+#define DMA_RAM_R __attribute__((section(".DMA_RAM_R")))
+#define DMA_RAM_W __attribute__((section(".DMA_RAM_W")))
+#define DMA_RAM_RW __attribute__((section(".DMA_RAM_RW")))
+#endif
 #else
 #define DMA_RAM
 #define DMA_RW_AXI
+#define DMA_RAM_R
+#define DMA_RAM_W
+#define DMA_RAM_RW
 #endif
 
 #define USE_BRUSHED_ESC_AUTODETECT  // Detect if brushed motors are connected and set defaults appropriately to avoid motors spinning on boot
@@ -204,6 +228,7 @@
 #define USE_PPM
 #define USE_SERIAL_RX
 #define USE_SERIALRX_CRSF       // Team Black Sheep Crossfire protocol
+#define USE_SERIALRX_GHST       // ImmersionRC Ghost Protocol
 #define USE_SERIALRX_IBUS       // FlySky and Turnigy receivers
 #define USE_SERIALRX_SBUS       // Frsky and Futaba receivers
 #define USE_SERIALRX_SPEKTRUM   // SRXL, DSM2 and DSMX protocol
@@ -235,6 +260,7 @@
 #define USE_DSHOT_DMAR
 #define USE_SERIALRX_FPORT      // FrSky FPort
 #define USE_TELEMETRY_CRSF
+#define USE_TELEMETRY_GHST
 #define USE_TELEMETRY_SRXL
 
 #if ((TARGET_FLASH_SIZE > 256) || (FEATURE_CUT_LEVEL < 12))
@@ -368,4 +394,5 @@
 #define USE_INTERPOLATED_SP
 #define USE_CUSTOM_BOX_NAMES
 #define USE_BATTERY_VOLTAGE_SAG_COMPENSATION
+#define USE_RX_MSP_OVERRIDE
 #endif

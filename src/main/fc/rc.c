@@ -74,8 +74,8 @@ static bool isRxDataNew = false;
 static float rcCommandDivider = 500.0f;
 static float rcCommandYawDivider = 500.0f;
 
-FAST_RAM_ZERO_INIT uint8_t interpolationChannels;
-static FAST_RAM_ZERO_INIT uint32_t rcFrameNumber;
+FAST_DATA_ZERO_INIT uint8_t interpolationChannels;
+static FAST_DATA_ZERO_INIT uint32_t rcFrameNumber;
 
 enum {
     ROLL_FLAG = 1 << ROLL,
@@ -96,7 +96,7 @@ enum {
 #define RC_SMOOTHING_RX_RATE_MAX_US             50000 // 50ms or 20hz
 #define RC_SMOOTHING_INTERPOLATED_FEEDFORWARD_DERIVATIVE_PT1_HZ 100 // The value to use for "auto" when interpolated feedforward is enabled
 
-static FAST_RAM_ZERO_INIT rcSmoothingFilter_t rcSmoothingData;
+static FAST_DATA_ZERO_INIT rcSmoothingFilter_t rcSmoothingData;
 #endif // USE_RC_SMOOTHING_FILTER
 
 uint32_t getRcFrameNumber()
@@ -210,12 +210,22 @@ float applyQuickRates(const int axis, float rcCommandf, const float rcCommandfAb
 {
     const uint16_t rcRate = currentControlRateProfile->rcRates[axis] * 2;
     const uint16_t maxDPS = MAX(currentControlRateProfile->rates[axis] * 10, rcRate);
-    const float linearity = currentControlRateProfile->rcExpo[axis] / 100.0f;
+    const float expof = currentControlRateProfile->rcExpo[axis] / 100.0f;
     const float superFactorConfig = ((float)maxDPS / rcRate - 1) / ((float)maxDPS / rcRate);
 
-    float curve = power3(rcCommandfAbs) * linearity + rcCommandfAbs * (1 - linearity);
-    float superfactor = 1.0f / (constrainf(1.0f - (curve * superFactorConfig), 0.01f, 1.00f));
-    float angleRate = constrainf(rcCommandf * rcRate * superfactor, -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
+    float curve;
+    float superFactor;
+    float angleRate;
+
+    if (currentControlRateProfile->quickRatesRcExpo) {
+        curve = power3(rcCommandf) * expof + rcCommandf * (1 - expof);
+        superFactor = 1.0f / (constrainf(1.0f - (rcCommandfAbs * superFactorConfig), 0.01f, 1.00f));
+        angleRate = constrainf(curve * rcRate * superFactor, -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
+    } else {
+        curve = power3(rcCommandfAbs) * expof + rcCommandfAbs * (1 - expof);
+        superFactor = 1.0f / (constrainf(1.0f - (curve * superFactorConfig), 0.01f, 1.00f));
+        angleRate = constrainf(rcCommandf * rcRate * superFactor, -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
+    }
 
     return angleRate;
 }
@@ -315,9 +325,9 @@ static void checkForThrottleErrorResetState(uint16_t rxRefreshRate)
 
 static FAST_CODE uint8_t processRcInterpolation(void)
 {
-    static FAST_RAM_ZERO_INIT float rcCommandInterp[4];
-    static FAST_RAM_ZERO_INIT float rcStepSize[4];
-    static FAST_RAM_ZERO_INIT int16_t rcInterpolationStepCount;
+    static FAST_DATA_ZERO_INIT float rcCommandInterp[4];
+    static FAST_DATA_ZERO_INIT float rcStepSize[4];
+    static FAST_DATA_ZERO_INIT int16_t rcInterpolationStepCount;
 
     uint16_t rxRefreshRate;
     uint8_t updatedChannel = 0;
@@ -518,10 +528,10 @@ FAST_CODE_NOINLINE bool rcSmoothingAutoCalculate(void)
 static FAST_CODE uint8_t processRcSmoothingFilter(void)
 {
     uint8_t updatedChannel = 0;
-    static FAST_RAM_ZERO_INIT float lastRxData[4];
-    static FAST_RAM_ZERO_INIT bool initialized;
-    static FAST_RAM_ZERO_INIT timeMs_t validRxFrameTimeMs;
-    static FAST_RAM_ZERO_INIT bool calculateCutoffs;
+    static FAST_DATA_ZERO_INIT float lastRxData[4];
+    static FAST_DATA_ZERO_INIT bool initialized;
+    static FAST_DATA_ZERO_INIT timeMs_t validRxFrameTimeMs;
+    static FAST_DATA_ZERO_INIT bool calculateCutoffs;
 
     // first call initialization
     if (!initialized) {
